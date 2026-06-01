@@ -80,4 +80,3 @@ def test_add_multiple_books_with_same_title():
     assert response.status_code == 200
     assert len(response.json()) == 2
     assert response.json() == [book, book]
-    
