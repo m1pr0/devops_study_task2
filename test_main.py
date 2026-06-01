@@ -31,7 +31,8 @@ def test_add_book():
 
 def test_get_books_after_add():
     """GET /books — возвращает все добавленные книги."""
-    book1 = {"title": "Преступление и наказание", "author": "Фёдор Достоевский"}
+    book1 = {"title": "Преступление и наказание", 
+             "author": "Фёдор Достоевский"}
     book2 = {"title": "Мастер и Маргарита", "author": "Михаил Булгаков"}
     client.post("/books", json=book1)
     client.post("/books", json=book2)
@@ -79,3 +80,4 @@ def test_add_multiple_books_with_same_title():
     assert response.status_code == 200
     assert len(response.json()) == 2
     assert response.json() == [book, book]
+    
