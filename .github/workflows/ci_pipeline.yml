@@ -8,7 +8,7 @@ on:
   pull_request:
     branches:
       - main
-      - dev
+      - dev2
 
 env:
   REGISTRY: ghcr.io
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [tests_and_linters]
 
-    if: github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'dev')
+    if: github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'dev2')
 
     permissions:
       contents: read
