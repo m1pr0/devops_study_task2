@@ -2,7 +2,8 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI, Depends
-from sqlmodel import SQLModel, Field, create_async_engine, AsyncSession, select
+from sqlmodel import SQLModel, Field, select
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 def get_database_url() -> str:
     """
