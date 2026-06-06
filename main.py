@@ -30,10 +30,19 @@ DATABASE_URL = get_database_url()
 engine = create_async_engine(DATABASE_URL, echo=False)
 
 
+# 1. Модель для валидации входных данных (принимает только title и author)
+# Pydantic будет строго следить, чтобы оба поля были в запросе!
+class BookCreate(SQLModel):
+    title: str
+    author: str
+
+
+# 2. Модель для базы данных (наследуется от базовой, добавляется id)
 class Book(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     title: str
     author: str
+
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSession(engine) as session:
@@ -49,13 +58,17 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/books", response_model=list[Book])
 async def get_books(session: AsyncSession = Depends(get_session)):
-    # ИСПРАВЛЕНИЕ: используем execute и scalars().all() вместо exec()
+
     result = await session.execute(select(Book))
     return result.scalars().all()
 
+# ВАЖНО: В аргументах мы теперь принимаем book: BookCreate, а не Book!
 @app.post("/books", response_model=Book, status_code=201)
-async def add_book(book: Book, session: AsyncSession = Depends(get_session)):
-    session.add(book)
+async def add_book(book: BookCreate, session: AsyncSession = Depends(get_session)):
+    # Создаем объект для базы данных из провалидированных данных
+    db_book = Book(title=book.title, author=book.author)
+    
+    session.add(db_book)
     await session.commit()
-    await session.refresh(book)
-    return book
+    await session.refresh(db_book)
+    return db_book
