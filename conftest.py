@@ -2,9 +2,11 @@ import os
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine
-# ИСПРАВЛЕНИЕ: импортируем AsyncSession, delete и select именно из sqlmodel
-from sqlmodel import SQLModel, select, delete, AsyncSession
+
+# ИСПРАВЛЕНИЕ: AsyncSession и create_async_engine берем из sqlalchemy
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+# А select, delete и SQLModel берем из sqlmodel
+from sqlmodel import SQLModel, select, delete
 
 from main import app, get_session, Book
 
@@ -74,4 +76,3 @@ async def client() -> AsyncClient:
     
     # Очищаем подмену после теста
     app.dependency_overrides.clear()
-    
