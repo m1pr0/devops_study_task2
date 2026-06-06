@@ -132,3 +132,4 @@ dmypy.json
 # Project-specific
 *.pyc
 *.pyo
+db/password.txt

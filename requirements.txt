@@ -1,6 +1,10 @@
 fastapi
 uvicorn
 pydantic
+pydantic-settings
+sqlmodel
+asyncpg
 httpx
 pytest
+pytest-asyncio
 flake8
