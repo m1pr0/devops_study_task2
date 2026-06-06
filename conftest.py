@@ -2,9 +2,9 @@ import os
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlmodel import SQLModel, delete
-from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine
+# ИСПРАВЛЕНИЕ: импортируем AsyncSession, delete и select именно из sqlmodel
+from sqlmodel import SQLModel, select, delete, AsyncSession
 
 from main import app, get_session, Book
 
@@ -44,7 +44,7 @@ async def setup_database():
 async def clean_database():
     """
     Очищает таблицу books перед каждым тестом.
-    Это гарантирует, что тесты не влияют друг на друга.
+    Теперь метод .exec() будет работать, так как AsyncSession взят из sqlmodel.
     """
     async with AsyncSession(test_engine) as session:
         await session.exec(delete(Book))
@@ -54,7 +54,7 @@ async def clean_database():
 
 
 @pytest_asyncio.fixture
-async def client() -> AsyncGenerator[AsyncClient, None]:
+async def client() -> AsyncClient:
     """
     Создает асинхронный HTTP клиент для тестов.
     Подменяет зависимость get_session, чтобы эндпоинты
@@ -74,3 +74,4 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     
     # Очищаем подмену после теста
     app.dependency_overrides.clear()
+    

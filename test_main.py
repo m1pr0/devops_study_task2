@@ -7,7 +7,7 @@ async def test_get_books_empty(client):
     response = await client.get("/books")
     assert response.status_code == 200
     assert response.json() == []
-    assert len(response.json()) == 0
+
 
 
 @pytest.mark.asyncio
@@ -15,12 +15,13 @@ async def test_add_book(client):
     """POST /books — добавляет книгу и возвращает её."""
     payload = {"title": "Война и мир", "author": "Лев Толстой"}
     response = await client.post("/books", json=payload)
-    assert response.status_code == 201
+    
+    assert response.status_code == 201  # В main.py указан status_code=201
     
     data = response.json()
     assert data["title"] == payload["title"]
     assert data["author"] == payload["author"]
-    assert "id" in data  # БД добавляет id
+    assert "id" in data  # База данных автоматически добавляет id
 
 
 @pytest.mark.asyncio
@@ -38,7 +39,7 @@ async def test_get_books_after_add(client):
     data = response.json()
     assert len(data) == 2
     
-    # Проверяем, что книги есть (без проверки id)
+    # Проверяем наличие книг по названию (так как id нам заранее неизвестен)
     titles = [book["title"] for book in data]
     assert book1["title"] in titles
     assert book2["title"] in titles
@@ -72,12 +73,13 @@ async def test_add_book_extra_field(client):
     """POST /books — лишнее поле игнорируется, книга добавляется."""
     payload = {"title": "Test", "author": "Tester", "year": 2026}
     response = await client.post("/books", json=payload)
-    assert response.status_code == 201
     
+    assert response.status_code == 201
+
     data = response.json()
     assert data["title"] == "Test"
     assert data["author"] == "Tester"
-    assert "year" not in data  # Лишнее поле не возвращается
+    assert "year" not in data  # Pydantic игнорирует лишние поля
 
 
 @pytest.mark.asyncio
@@ -93,7 +95,7 @@ async def test_add_multiple_books_with_same_title(client):
     
     data = response.json()
     assert len(data) == 2
+
     
-    # Обе книги имеют одинаковое название
     assert data[0]["title"] == "Дубль"
     assert data[1]["title"] == "Дубль"
