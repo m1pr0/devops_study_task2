@@ -1,9 +1,17 @@
+# Основные зависимости
 fastapi
 uvicorn
 pydantic
 pydantic-settings
 sqlmodel
 asyncpg
+
+# HTTP клиент для асинхронных тестов
 httpx
+
+# Тестирование
 pytest
+pytest-asyncio  # Поддержка async тестов в pytest
+
+# Линтеры
 flake8
