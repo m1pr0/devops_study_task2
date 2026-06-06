@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI, Depends
 from sqlmodel import SQLModel, Field, select
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel.ext.asyncio.session import AsyncSession  # <-- ИСПРАВЛЕНО: импортируем из sqlmodel
 
 def get_database_url() -> str:
     """
@@ -11,16 +12,15 @@ def get_database_url() -> str:
     Если запущено в Docker, читает пароль из файла секрета.
     Если локально, использует переменные окружения или значения по умолчанию.
     """
-    # Путь к файлу секрета (стандартный для Docker или из переменной окружения)
+   
     secret_file = os.getenv("DB_PASSWORD_FILE", "/run/secrets/db-password")
     
     if os.path.exists(secret_file):
-        # Читаем пароль из файла. 
-        # ВАЖНО: .strip() убирает скрытые переносы строк (\n), которые часто ломают подключение!
+   
         with open(secret_file, "r") as f:
             password = f.read().strip()
     else:
-        # Фоллбэк для локальной разработки без Docker
+   
         password = os.getenv("DB_PASSWORD", "mysecretpassword")
 
     host = os.getenv("POSTGRES_HOST", "localhost")
@@ -29,13 +29,13 @@ def get_database_url() -> str:
 
     return f"postgresql+asyncpg://{user}:{password}@{host}:5432/{db_name}"
 
-# Получаем итоговый URL
+
 DATABASE_URL = get_database_url()
 
-# Создаем асинхронный движок
+
 engine = create_async_engine(DATABASE_URL, echo=False)
 
-# ... дальше твой код без изменений ...
+
 class Book(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     title: str
@@ -55,6 +55,7 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/books", response_model=list[Book])
 async def get_books(session: AsyncSession = Depends(get_session)):
+    # Теперь .exec() работает корректно
     result = await session.exec(select(Book))
     return result.all()
 

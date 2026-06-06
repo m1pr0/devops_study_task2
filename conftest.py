@@ -3,8 +3,8 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
-
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel.ext.asyncio.session import AsyncSession  # <-- Для консистентности берем из sqlmodel
 from sqlmodel import SQLModel
 
 from main import app, get_session, Book
@@ -23,11 +23,17 @@ def get_test_database_url() -> str:
 TEST_DATABASE_URL = get_test_database_url()
 
 
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+# 1. Создаем engine ВНУТРИ фикстуры, чтобы он попал в нужный event loop
+@pytest_asyncio.fixture(scope="session")
+async def test_engine():
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+    yield engine
+    await engine.dispose()  # Корректно закрываем соединения после всех тестов
 
 
+# 2. Принимаем test_engine как аргумент
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_database():
+async def setup_database(test_engine):
     """Создает таблицы один раз перед всеми тестами и удаляет после."""
     async with test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
@@ -38,8 +44,9 @@ async def setup_database():
         await conn.run_sync(SQLModel.metadata.drop_all)
 
 
+# 3. Принимаем test_engine как аргумент
 @pytest_asyncio.fixture
-async def session():
+async def session(test_engine):
     """
     Создает сессию внутри транзакции.
     После каждого теста транзакция откатывается (rollback), 
@@ -58,10 +65,11 @@ async def client(session):
         yield session
 
     app.dependency_overrides[get_session] = override_get_session
-    
-    
+
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
         
     app.dependency_overrides.clear()
+    
