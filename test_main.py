@@ -21,15 +21,16 @@ async def test_add_book(client):
     assert data["author"] == payload["author"]
     assert "id" in data
 
+
 @pytest.mark.asyncio
 async def test_get_books_after_add(client):
-
-    book1 = {"title": "Преступление и наказание", "author": "Фёдор Достоевский"}
+    book1 = {"title": "Преступление и наказание",
+             "author": "Фёдор Достоевский"}
     book2 = {"title": "Мастер и Маргарита", "author": "Михаил Булгаков"}
 
     await client.post("/books", json=book1)
     await client.post("/books", json=book2)
-    
+
     response = await client.get("/books")
     assert response.status_code == 200
 
@@ -66,25 +67,26 @@ async def test_add_book_empty_body(client):
 
 @pytest.mark.asyncio
 async def test_add_book_extra_field(client):
-    
+
     payload = {"title": "Test", "author": "Tester", "year": 2026}
     response = await client.post("/books", json=payload)
-    
+
     assert response.status_code == 201
-    
+
     data = response.json()
     assert data["title"] == "Test"
     assert data["author"] == "Tester"
     assert "year" not in data
 
+
 @pytest.mark.asyncio
 async def test_add_multiple_books_with_same_title(client):
-    
+
     book = {"title": "Дубль", "author": "Автор"}
-    
+
     await client.post("/books", json=book)
     await client.post("/books", json=book)
-    
+
     response = await client.get("/books")
     assert response.status_code == 200
 

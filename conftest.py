@@ -46,12 +46,14 @@ async def setup_database():
 async def clean_database():
     """
     Очищает таблицу books перед каждым тестом.
-    Теперь метод .exec() будет работать, так как AsyncSession взят из sqlmodel.
+    ИСПРАВЛЕНИЕ: используем session.execute вместо session.exec
     """
     async with AsyncSession(test_engine) as session:
-        await session.exec(delete(Book))
+        # БЫЛО: await session.exec(delete(Book))
+        # СТАЛО:
+        await session.execute(delete(Book))
         await session.commit()
-    
+        
     yield
 
 
