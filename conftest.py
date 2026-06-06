@@ -1,12 +1,12 @@
 import os
-import pytest
+
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlmodel import SQLModel
 
-from main import app, get_session, Book
+from main import app, get_session
 
 
 def get_test_database_url() -> str:

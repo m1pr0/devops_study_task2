@@ -9,7 +9,6 @@ async def test_get_books_empty(client):
     assert response.json() == []
 
 
-
 @pytest.mark.asyncio
 async def test_add_book(client):
 
@@ -92,7 +91,6 @@ async def test_add_multiple_books_with_same_title(client):
 
     data = response.json()
     assert len(data) == 2
-
 
     assert data[0]["title"] == "Дубль"
     assert data[1]["title"] == "Дубль"

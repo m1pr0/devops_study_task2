@@ -5,10 +5,11 @@ from fastapi import FastAPI, Depends
 from sqlmodel import SQLModel, Field, select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
+
 def get_database_url() -> str:
 
     secret_file = os.getenv("DB_PASSWORD_FILE", "/run/secrets/db-password")
-    
+
     if os.path.exists(secret_file):
 
         with open(secret_file, "r") as f:
@@ -48,6 +49,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSession(engine) as session:
         yield session
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -56,6 +58,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
 @app.get("/books", response_model=list[Book])
 async def get_books(session: AsyncSession = Depends(get_session)):
 
@@ -63,11 +66,13 @@ async def get_books(session: AsyncSession = Depends(get_session)):
     return result.scalars().all()
 
 # ВАЖНО: В аргументах мы теперь принимаем book: BookCreate, а не Book!
+
+
 @app.post("/books", response_model=Book, status_code=201)
 async def add_book(book: BookCreate, session: AsyncSession = Depends(get_session)):
     # Создаем объект для базы данных из провалидированных данных
     db_book = Book(title=book.title, author=book.author)
-    
+
     session.add(db_book)
     await session.commit()
     await session.refresh(db_book)
