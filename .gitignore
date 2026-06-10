@@ -133,3 +133,9 @@ dmypy.json
 *.pyc
 *.pyo
 db/password.txt
+
+# Никогда не пушим секреты в Git!
+ansible/templates/.env.j2
+.env
+*.pem
+*.key
