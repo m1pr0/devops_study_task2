@@ -1,0 +1,11 @@
+---
+# Имя пользователя, от которого будет работать приложение
+app_user: appOwner
+
+# Ссылка на ваш GitHub репозиторий
+app_repo_url: "https://github.com/m1pr0/devops_study_task2.git"
+# Куда клонировать репозиторий на сервере
+app_repo_dest: "/opt/myapp"
+
+# Порт, который слушает ваше приложение
+app_port: 8000

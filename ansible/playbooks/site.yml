@@ -1,0 +1,160 @@
+---
+- name: Полная настройка ВМ для Docker-приложения
+  hosts: my_vm
+  gather_facts: true  # Собираем факты о системе (OS, IP и т.д.) перед началом
+  
+  tasks:
+    # ---------------------------------------------------------
+    # БЛОК 1: Подготовка системы
+    # ---------------------------------------------------------
+    - name: Обновляем кэш пакетов apt
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600  # Идемпотентность: не обновлять кэш чаще, чем раз в час
+      tags: setup
+
+    - name: Устанавливаем базовые необходимые пакеты
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - git
+          - ufw
+        state: present  # Идемпотентность: если пакет есть, Ansible вернет "ok"
+      tags: setup
+
+    # ---------------------------------------------------------
+    # БЛОК 2: Установка Docker (Правильный, официальный способ)
+    # ---------------------------------------------------------
+    - name: Добавляем официальный GPG-ключ Docker
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+      # Идемпотентность: get_url проверяет контрольную сумму файла
+      tags: docker
+
+    - name: Добавляем репозиторий Docker в список источников
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+      # Идемпотентность: проверяет файл /etc/apt/sources.list.d/docker.list
+      tags: docker
+
+    - name: Устанавливаем Docker Engine и плагин Compose V2
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin  # Современная замена устаревшему python-пакету
+        state: present
+        update_cache: true
+      tags: docker
+
+    # ---------------------------------------------------------
+    # БЛОК 3: Настройка пользователей
+    # ---------------------------------------------------------
+    - name: Создаем системного пользователя для приложения
+      ansible.builtin.user:
+        name: "{{ app_user }}"
+        shell: /bin/bash
+        create_home: true
+        state: present
+      tags: users
+
+    - name: Добавляем пользователя в группу docker (для запуска без sudo)
+      ansible.builtin.user:
+        name: "{{ app_user }}"
+        groups: docker
+        append: true  # КРИТИЧНО: без этого удалит пользователя из других групп
+      tags: users
+
+    # ---------------------------------------------------------
+    # БЛОК 4: Настройка фаервола (UFW)
+    # ---------------------------------------------------------
+    - name: Разрешаем SSH в фаерволе (ВСЕГДА перед включением UFW!)
+      community.general.ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+      tags: firewall
+
+    - name: Разрешаем порт нашего приложения
+      community.general.ufw:
+        rule: allow
+        port: "{{ app_port }}"
+        proto: tcp
+      tags: firewall
+
+    - name: Включаем UFW
+      community.general.ufw:
+        state: enabled
+        logging: 'on'
+      # Идемпотентность: если UFW уже включен, вернет "ok"
+      tags: firewall
+
+    # ---------------------------------------------------------
+    # БЛОК 5: Развертывание приложения
+    # ---------------------------------------------------------
+    - name: Создаем основную директорию для приложения
+      ansible.builtin.file:
+        path: "{{ app_repo_dest }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+      tags: deploy
+
+    - name: Создаем поддиректорию db для хранения секрета
+      ansible.builtin.file:
+        path: "{{ app_repo_dest }}/db"
+        state: directory
+        owner: "{{ app_user }}"
+        mode: '0600'  # Строгие права для директории с секретами
+      tags: deploy
+
+    - name: Копируем файл compose.yaml на сервер
+      ansible.builtin.copy:
+        src: ../../compose.yaml
+        dest: "{{ app_repo_dest }}/compose.yaml"
+        owner: "{{ app_user }}"
+        mode: '0644'
+      notify: Restart Application
+      tags: deploy
+
+    - name: Создаем файл с паролем для БД (Docker Secret)
+      ansible.builtin.copy:
+        content: "{{ db_password }}"  # ← Переменная из vault.yml (зашифрована!)
+        dest: "{{ app_repo_dest }}/db/password.txt"
+        owner: "{{ app_user }}"
+        mode: '0600'  # ← ТОЛЬКО владелец может читать!
+      notify: Restart Application
+      tags: deploy
+
+    # ЗАДАЧА УДАЛЕНА: Генерация .env из шаблона больше не нужна
+    # compose.yaml не использует env_file:, все переменные захардкожены,
+    # а пароль передается через Docker Secrets (db/password.txt)
+
+    - name: Запускаем приложение через Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_repo_dest }}"
+        state: present
+        pull: missing
+        become_user: "{{ app_user }}"
+      tags: deploy
+
+  # ---------------------------------------------------------
+  # HANDLERS (Обработчики событий)
+  # Выполняются ТОЛЬКО в конце плейбука и ТОЛЬКО если задача
+  # вызвавшая их через 'notify', изменила состояние (changed)
+  # ---------------------------------------------------------
+  handlers:
+    - name: Restart Application
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_repo_dest }}"
+        state: restarted
+        become_user: "{{ app_user }}"
